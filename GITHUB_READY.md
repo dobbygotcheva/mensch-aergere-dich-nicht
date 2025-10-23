@@ -296,11 +296,7 @@ git push -u origin main
 
 ---
 
-## 🎉 Congratulations!
-
-Your project is ready for the world to see! 🚀
-
-**Star your own repo and share it with the community!** ⭐
+## Congratulations!
 
 ---
 
