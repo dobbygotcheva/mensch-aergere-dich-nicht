@@ -309,10 +309,6 @@ Elegant form with team information and smooth animations.
 
 ---
 
-## 🏆 Credits
-
-**Developed with ❤️ by the Mensch, ärgere dich nicht! Team**
-
 ⭐ Star this repo if you enjoyed it!
 
 ---
