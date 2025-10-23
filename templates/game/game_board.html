@@ -1,0 +1,474 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Game Board - Mensch, ärgere dich nicht!{% endblock %}
+
+{% block extra_css %}
+<style>
+    body { 
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    }
+    /* Hide navbar on game board for full-screen experience */
+    .navbar { display: none; }
+    .footer { display: none; }
+    /* Adjust main content to use full viewport */
+    .main-content { padding: 0; }
+    
+    /* Style controls sidebar with purple/pink theme */
+    .controls-sidebar {
+        background: rgba(118, 75, 162, 0.3) !important;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(240, 147, 251, 0.4) !important;
+    }
+    
+    .current-turn {
+        background: rgba(118, 75, 162, 0.2);
+        border-radius: 12px;
+        padding: 1rem;
+        border: 2px solid rgba(240, 147, 251, 0.3);
+    }
+    
+    .current-turn h2 {
+        color: #fef3e2 !important;
+        text-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+    }
+    
+    .turn-indicator {
+        background: rgba(118, 75, 162, 0.25) !important;
+        border: 2px solid rgba(240, 147, 251, 0.4) !important;
+    }
+    
+    #current-player-name {
+        color: #fef3e2 !important;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+    }
+    
+    .dice-section {
+        background: rgba(118, 75, 162, 0.2);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 2px solid rgba(240, 147, 251, 0.3);
+    }
+    
+    .dice-section h3 {
+        color: #fef3e2 !important;
+        text-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+    }
+    
+    .game-log {
+        background: rgba(118, 75, 162, 0.2);
+        border-radius: 12px;
+        padding: 1rem;
+        border: 2px solid rgba(240, 147, 251, 0.3);
+    }
+    
+    .game-log h3 {
+        color: #fef3e2 !important;
+        text-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+    }
+    
+    .log-messages {
+        background: rgba(118, 75, 162, 0.15) !important;
+        border: 1px solid rgba(240, 147, 251, 0.2) !important;
+    }
+    
+    .log-message {
+        color: #f5e6d3 !important;
+    }
+    
+    /* Update players sidebar */
+    .players-sidebar {
+        background: rgba(118, 75, 162, 0.3) !important;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(240, 147, 251, 0.4) !important;
+    }
+    
+    .players-sidebar h2 {
+        color: #fef3e2 !important;
+        text-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+    }
+    
+    /* Update board container */
+    .board-container {
+        background: rgba(118, 75, 162, 0.25) !important;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(240, 147, 251, 0.4) !important;
+    }
+    
+    /* Update game header */
+    .game-header {
+        background: rgba(118, 75, 162, 0.3) !important;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(240, 147, 251, 0.4) !important;
+    }
+    
+    .game-header h1 {
+        color: #fef3e2 !important;
+        text-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container game-board-page">
+    <div class="game-header">
+        <h1>Game #{{ game.id }}</h1>
+        <div class="game-status">
+            <span class="status-badge status-{{ game.status }}">{{ game.get_status_display }}</span>
+        </div>
+        <div class="game-actions">
+            <a href="{% url 'home' %}" class="btn-secondary">← Back to Home</a>
+            <button id="quit-game-btn" class="btn-danger">Quit Game</button>
+        </div>
+    </div>
+    
+    <div class="game-container">
+        <!-- Left Sidebar: Players Info -->
+        <div class="players-sidebar">
+            <h2>Players</h2>
+            {% for player in players %}
+            <div class="player-card player-{{ player.color }}" 
+                 data-player-color="{{ player.color }}"
+                 id="player-card-{{ player.color }}">
+                <div class="player-header">
+                    <span class="player-color-badge" style="background: var(--color-{{ player.color }});"></span>
+                    <h3>{{ player.name }}</h3>
+                    <span class="currency-badge">{{ player.currency_info.symbol }} {{ player.currency_info.name }}</span>
+                </div>
+                <div class="player-pieces-status">
+                    <div class="piece-status-grid">
+                        {% for piece in player.pieces_with_images %}
+                        <div class="piece-mini team-piece" 
+                             style="{% if piece.team_image %}background-image: url('{% static 'images/' %}{{ piece.team_image }}'); {% endif %}background-size: cover; background-position: center;"
+                             data-piece-number="{{ piece.piece_number }}">
+                            {% if piece.in_home %}<span class="piece-home-check">✓</span>{% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Center: Game Board -->
+        <div class="board-container">
+            <div class="board-wrapper">
+                <svg id="game-board" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Board background with gradient -->
+                    <defs>
+                        <linearGradient id="board-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#e8f5e9;stop-opacity:1" />
+                            <stop offset="50%" style="stop-color:#fff9c4;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#e1f5fe;stop-opacity:1" />
+                        </linearGradient>
+                        <filter id="shadow">
+                            <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+                        </filter>
+                    </defs>
+                    <rect x="0" y="0" width="600" height="600" fill="url(#board-gradient)" stroke="#333" stroke-width="3"/>
+                    
+                    <!-- Starting areas (corners) -->
+                    <!-- Red corner (top-left) with Dollar theme -->
+                    <defs>
+                        <pattern id="dollar-pattern" x="0" y="0" width="240" height="240" patternUnits="userSpaceOnUse">
+                            <image href="{% static 'images/dollar/dollar5.jpg' %}" x="0" y="0" width="240" height="240" opacity="0.15"/>
+                        </pattern>
+                        <pattern id="euro-pattern" x="0" y="0" width="240" height="240" patternUnits="userSpaceOnUse">
+                            <image href="{% static 'images/euro/5euro' %}" x="0" y="0" width="240" height="240" opacity="0.15"/>
+                        </pattern>
+                        <pattern id="leva-pattern" x="0" y="0" width="240" height="240" patternUnits="userSpaceOnUse">
+                            <image href="{% static 'images/leva/5lv.jpg' %}" x="0" y="0" width="240" height="240" opacity="0.15"/>
+                        </pattern>
+                        <pattern id="liri-pattern" x="0" y="0" width="240" height="240" patternUnits="userSpaceOnUse">
+                            <image href="{% static 'images/liri/5liri.jpg' %}" x="0" y="0" width="240" height="240" opacity="0.15"/>
+                        </pattern>
+                    </defs>
+                    <rect x="20" y="20" width="240" height="240" fill="url(#dollar-pattern)" stroke="#333" stroke-width="3" rx="10"/>
+                    <rect x="20" y="20" width="240" height="240" fill="#ffebee" opacity="0.15" stroke="#333" stroke-width="3" rx="10"/>
+                    <text x="130" y="60" text-anchor="middle" font-size="40" font-weight="bold" fill="#ef5350" opacity="0.5">$</text>
+                    <g id="red-start">
+                        <circle cx="200.92" cy="200.92" r="18" fill="#ef5350" stroke="#333" stroke-width="2" class="start-spot" opacity="0.8"/>
+                        <circle cx="171.2" cy="171.2" r="18" fill="#ef5350" stroke="#333" stroke-width="2" class="start-spot" opacity="0.8"/>
+                        <circle cx="141.48" cy="141.48" r="18" fill="#ef5350" stroke="#333" stroke-width="2" class="start-spot" opacity="0.8"/>
+                        <circle cx="111.76" cy="111.76" r="18" fill="#ef5350" stroke="#333" stroke-width="2" class="start-spot" opacity="0.8"/>
+                    </g>
+                    
+                    <!-- Blue corner (top-right) with Euro theme -->
+                    <rect x="340" y="20" width="240" height="240" fill="url(#euro-pattern)" stroke="#333" stroke-width="3" rx="10"/>
+                    <rect x="340" y="20" width="240" height="240" fill="#e3f2fd" opacity="0.15" stroke="#333" stroke-width="3" rx="10"/>
+                    <text x="470" y="60" text-anchor="middle" font-size="40" font-weight="bold" fill="#42a5f5" opacity="0.5">€</text>
+                    <g id="blue-start">
+                        <circle cx="399.08" cy="200.92" r="18" fill="#42a5f5" stroke="#333" stroke-width="2" class="start-spot" opacity="0.8"/>
+                        <circle cx="428.8" cy="171.2" r="18" fill="#42a5f5" stroke="#333" stroke-width="2" class="start-spot" opacity="0.8"/>
+                        <circle cx="458.52" cy="141.48" r="18" fill="#42a5f5" stroke="#333" stroke-width="2" class="start-spot" opacity="0.8"/>
+                        <circle cx="488.24" cy="111.76" r="18" fill="#42a5f5" stroke="#333" stroke-width="2" class="start-spot" opacity="0.8"/>
+                    </g>
+                    
+                    <!-- Green corner (bottom-right) with Leva theme -->
+                    <rect x="340" y="340" width="240" height="240" fill="url(#leva-pattern)" stroke="#333" stroke-width="3" rx="10"/>
+                    <rect x="340" y="340" width="240" height="240" fill="#e8f5e9" opacity="0.15" stroke="#333" stroke-width="3" rx="10"/>
+                    <text x="470" y="380" text-anchor="middle" font-size="40" font-weight="bold" fill="#66bb6a" opacity="0.5">лв</text>
+                    <g id="green-start">
+                        <circle cx="399.08" cy="399.08" r="18" fill="#66bb6a" stroke="#333" stroke-width="2" class="start-spot" opacity="0.8"/>
+                        <circle cx="428.8" cy="428.8" r="18" fill="#66bb6a" stroke="#333" stroke-width="2" class="start-spot" opacity="0.8"/>
+                        <circle cx="458.52" cy="458.52" r="18" fill="#66bb6a" stroke="#333" stroke-width="2" class="start-spot" opacity="0.8"/>
+                        <circle cx="488.24" cy="488.24" r="18" fill="#66bb6a" stroke="#333" stroke-width="2" class="start-spot" opacity="0.8"/>
+                    </g>
+                    
+                    <!-- Yellow corner (bottom-left) with ROMA THEME! -->
+                    <rect x="20" y="340" width="240" height="240" fill="url(#liri-pattern)" stroke="#333" stroke-width="3" rx="10"/>
+                    <rect x="20" y="340" width="240" height="240" fill="#fffde7" opacity="0.15" stroke="#333" stroke-width="3" rx="10"/>
+                    <text x="130" y="380" text-anchor="middle" font-size="40" font-weight="bold" fill="#d4af37" opacity="0.5">⚜️</text>
+                    <g id="yellow-start">
+                        <circle cx="200.92" cy="399.08" r="18" fill="#ffee58" stroke="#333" stroke-width="2" class="start-spot" opacity="0.8"/>
+                        <circle cx="171.2" cy="428.8" r="18" fill="#ffee58" stroke="#333" stroke-width="2" class="start-spot" opacity="0.8"/>
+                        <circle cx="141.48" cy="458.52" r="18" fill="#ffee58" stroke="#333" stroke-width="2" class="start-spot" opacity="0.8"/>
+                        <circle cx="111.76" cy="488.24" r="18" fill="#ffee58" stroke="#333" stroke-width="2" class="start-spot" opacity="0.8"/>
+                    </g>
+                    
+                    <!-- Roma coins decorating Yellow corner -->
+                    <g id="yellow-roma-coins">
+                        <!-- Top row -->
+                        <image href="{% static 'images/roma/rimska-zlatna-moneta.jpg' %}" x="35" y="350" width="42" height="42" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/roma/domna-1.jpg' %}" x="90" y="348" width="42" height="42" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/roma/rimska-zlatna-moneta.jpg' %}" x="145" y="350" width="42" height="42" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/roma/domna-1.jpg' %}" x="200" y="352" width="42" height="42" opacity="1.0" filter="url(#shadow)"/>
+                        
+                        <!-- Right side -->
+                        <image href="{% static 'images/roma/rimska-zlatna-moneta.jpg' %}" x="228" y="400" width="42" height="42" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/roma/domna-1.jpg' %}" x="228" y="460" width="42" height="42" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/roma/rimska-zlatna-moneta.jpg' %}" x="218" y="520" width="42" height="42" opacity="1.0" filter="url(#shadow)"/>
+                        
+                        <!-- Bottom row -->
+                        <image href="{% static 'images/roma/domna-1.jpg' %}" x="160" y="538" width="42" height="42" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/roma/rimska-zlatna-moneta.jpg' %}" x="100" y="538" width="42" height="42" opacity="1.0" filter="url(#shadow)"/>
+                        
+                        <!-- Left side -->
+                        <image href="{% static 'images/roma/domna-1.jpg' %}" x="28" y="520" width="42" height="42" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/roma/rimska-zlatna-moneta.jpg' %}" x="28" y="460" width="42" height="42" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/roma/domna-1.jpg' %}" x="28" y="400" width="42" height="42" opacity="1.0" filter="url(#shadow)"/>
+                    </g>
+                    
+                    <!-- Main circular path (40 positions) - Currency images only, no white backgrounds! -->
+                    <g id="main-path">
+                        <!-- Red section (positions 0-9) - Dollar coins with shadow (skip 3, 7 - they have challenges) -->
+                        <image href="{% static 'images/dollar/cent1.png' %}" x="205.68" y="280" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/dollar/cent2.png' %}" x="162.52" y="257.28" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/dollar/cent3.png' %}" x="115.64" y="226.76" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <!-- Position 3: Challenge image (Bai Ganio) -->
+                        <image href="{% static 'images/dollar/cent1.png' %}" x="37.52" y="144.56" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/dollar/cent2.png' %}" x="20" y="97.72" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/dollar/cent3.png' %}" x="24.56" y="54.4" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <!-- Position 7: Challenge image (Catwalk) -->
+                        <image href="{% static 'images/dollar/cent1.png' %}" x="98.04" y="20.04" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/dollar/cent2.png' %}" x="144.92" y="37.76" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        
+                        <!-- Blue section (positions 10-19) - Euro coins with shadow (skip 13, 17, 19 - they have challenges) -->
+                        <image href="{% static 'images/euro/5cent.png' %}" x="189.08" y="72" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/euro/10cent.png' %}" x="227.16" y="116.16" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/euro/20cent.png' %}" x="257.68" y="163.16" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <!-- Position 13: Challenge image (Dance) -->
+                        <image href="{% static 'images/euro/10cent.png' %}" x="302.72" y="162.52" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/euro/20cent.png' %}" x="333.24" y="115.64" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/euro/50cent.png' %}" x="371.32" y="71.64" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <!-- Position 17: Challenge image (Burgas 63) -->
+                        <image href="{% static 'images/euro/10cent.png' %}" x="462.28" y="20" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <!-- Position 19: Challenge image (Light Weight) -->
+                        
+                        <!-- Green section (positions 20-29) - Leva coins with shadow (skip 22, 26 - they have challenges) -->
+                        <image href="{% static 'images/leva/10st.png' %}" x="535.52" y="54.64" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/leva/20st.png' %}" x="539.96" y="98.04" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <!-- Position 22: Challenge image (Dictionary) -->
+                        <image href="{% static 'images/leva/10st.png' %}" x="488" y="189.08" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/leva/20st.png' %}" x="443.84" y="227.16" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/leva/50st.png' %}" x="396.84" y="257.68" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <!-- Position 26: Challenge image (Hot Peppers) -->
+                        <image href="{% static 'images/leva/20st.png' %}" x="397.48" y="302.72" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/leva/50st.png' %}" x="444.36" y="333.24" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/leva/10st.png' %}" x="488.36" y="371.32" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        
+                        <!-- Positions 30-39 (Bottom-right area = GREEN/Player 3) - Leva coins! -->
+                        <image href="{% static 'images/leva/10st.png' %}" x="519.98" y="412.94" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/leva/20st.png' %}" x="537.5" y="459.78" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/leva/50st.png' %}" x="532.94" y="503.1" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/leva/10st.png' %}" x="502.86" y="533.02" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/leva/20st.png' %}" x="459.46" y="537.46" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/leva/50st.png' %}" x="412.58" y="519.74" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/leva/10st.png' %}" x="368.42" y="485.5" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/leva/20st.png' %}" x="330.34" y="441.34" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        <image href="{% static 'images/leva/50st.png' %}" x="299.82" y="394.34" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                    </g>
+                    
+                    <!-- Challenge images ON TOP - rendered last so they appear above coins! -->
+                    <g id="challenge-markers">
+                        <!-- Position 3: Bai Ganio (Red section) -->
+                        <image href="{% static 'images/challenges/бай_ganio.jpg' %}" x="71.64" y="188.68" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        
+                        <!-- Position 7: Catwalk (Red section) -->
+                        <image href="{% static 'images/challenges/catwalk.jpg' %}" x="54.64" y="24.48" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        
+                        <!-- Position 13: Dance (Blue section) -->
+                        <image href="{% static 'images/challenges/dance.jpg' %}" x="280" y="205.68" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        
+                        <!-- Position 17: Burgas 63 (Blue section) -->
+                        <image href="{% static 'images/challenges/Burgas_63.jpg' %}" x="415.44" y="37.52" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        
+                        <!-- Position 19: Light Weight (Blue section) -->
+                        <image href="{% static 'images/challenges/light weight.png' %}" x="505.6" y="24.56" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        
+                        <!-- Position 22: Dictionary (Green section) -->
+                        <image href="{% static 'images/challenges/dictionary.jpeg' %}" x="522.24" y="144.92" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        
+                        <!-- Position 26: Hot Peppers (Green section) -->
+                        <image href="{% static 'images/challenges/hot pepper.jpg' %}" x="354.32" y="280" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                        
+                        <!-- Position 33: Luft Anhalten (Yellow section) -->
+                        <image href="{% static 'images/challenges/luft_anhalten.png' %}" x="497.36" y="527.52" width="45" height="45" opacity="1.0" filter="url(#shadow)"/>
+                        
+                        <!-- Position 37: Music Break (Yellow section) -->
+                        <image href="{% static 'images/challenges/music break.png' %}" x="324.84" y="435.84" width="45" height="45" opacity="1.0" filter="url(#shadow)"/>
+                        
+                        <!-- Position 39: Radoi Ralin (Yellow section) -->
+                        <image href="{% static 'images/challenges/radoi_ralin.jpg' %}" x="277.5" y="351.82" width="40" height="40" opacity="1.0" filter="url(#shadow)"/>
+                    </g>
+                    
+                    <!-- Home lanes with currency images -->
+                    <g id="home-lanes">
+                        <!-- Red home lane with dollar bills -->
+                        <line x1="225.68" y1="300" x2="95.88" y2="300" stroke="#ef5350" stroke-width="8" opacity="0.3"/>
+                        <image href="{% static 'images/dollar/dollar1.jpeg' %}" x="125.52" y="290" width="35" height="35" opacity="0.95"/>
+                        <image href="{% static 'images/dollar/dollar5.jpg' %}" x="85.88" y="250.36" width="35" height="35" opacity="0.95"/>
+                        <image href="{% static 'images/dollar/10dollar.jpeg' %}" x="85.88" y="290" width="35" height="35" opacity="0.95"/>
+                        <image href="{% static 'images/dollar/20dollars.jpg' %}" x="85.88" y="329.64" width="35" height="35" opacity="0.95"/>
+                        
+                        <!-- Blue home lane with euro bills -->
+                        <line x1="300" y1="135.52" x2="300" y2="95.88" stroke="#42a5f5" stroke-width="8" opacity="0.3"/>
+                        <image href="{% static 'images/euro/5euro' %}" x="290" y="125.52" width="35" height="35" opacity="0.95"/>
+                        <image href="{% static 'images/euro/10euro.jpg' %}" x="329.64" y="85.88" width="35" height="35" opacity="0.95"/>
+                        <image href="{% static 'images/euro/20euro.jpeg' %}" x="290" y="85.88" width="35" height="35" opacity="0.95"/>
+                        <image href="{% static 'images/euro/50euro.jpg' %}" x="250.36" y="85.88" width="35" height="35" opacity="0.95"/>
+                        
+                        <!-- Green home lane with leva bills -->
+                        <line x1="464.48" y1="300" x2="504.12" y2="300" stroke="#66bb6a" stroke-width="8" opacity="0.3"/>
+                        <image href="{% static 'images/leva/2lv.jpg' %}" x="454.48" y="290" width="35" height="35" opacity="0.95"/>
+                        <image href="{% static 'images/leva/5lv.jpg' %}" x="494.12" y="329.64" width="35" height="35" opacity="0.95"/>
+                        <image href="{% static 'images/leva/10lv.jpg' %}" x="494.12" y="290" width="35" height="35" opacity="0.95"/>
+                        <image href="{% static 'images/leva/20lv.jpg' %}" x="494.12" y="250.36" width="35" height="35" opacity="0.95"/>
+                        
+                        <!-- Yellow home lane with liri bills -->
+                        <line x1="300" y1="464.48" x2="300" y2="504.12" stroke="#ffee58" stroke-width="8" opacity="0.3"/>
+                        <image href="{% static 'images/liri/5liri.jpg' %}" x="282.5" y="446.98" width="35" height="35" opacity="0.95"/>
+                        <image href="{% static 'images/liri/10liri.jpg' %}" x="242.86" y="486.62" width="35" height="35" opacity="0.95"/>
+                        <image href="{% static 'images/liri/20liri.jpg' %}" x="282.5" y="486.62" width="35" height="35" opacity="0.95"/>
+                        <image href="{% static 'images/liri/50liri.jpg' %}" x="322.14" y="486.62" width="35" height="35" opacity="0.95"/>
+                    </g>
+                    
+                    <!-- Center finish zone with currency decorations -->
+                    <circle cx="300" cy="300" r="50" fill="gold" opacity="0.5" stroke="#333" stroke-width="3"/>
+                    <circle cx="300" cy="300" r="45" fill="gold" opacity="0.3"/>
+                    
+                    <!-- Small coin decorations around center (LARGER AND MORE VISIBLE) -->
+                    <image href="{% static 'images/dollar/cent1.png' %}" x="260" y="240" width="35" height="35" opacity="0.6"/>
+                    <image href="{% static 'images/euro/1cent.png' %}" x="310" y="240" width="35" height="35" opacity="0.6"/>
+                    <image href="{% static 'images/leva/st.png' %}" x="310" y="330" width="35" height="35" opacity="0.6"/>
+                    <image href="{% static 'images/liri/1kr.jpeg' %}" x="260" y="330" width="35" height="35" opacity="0.6"/>
+                    
+                    <text x="300" y="310" text-anchor="middle" font-size="24" font-weight="bold" fill="#333">🏆</text>
+                </svg>
+                
+                <!-- Pieces will be positioned absolutely over the board -->
+                <div id="pieces-container"></div>
+            </div>
+        </div>
+        
+        <!-- Right Sidebar: Game Controls -->
+        <div class="controls-sidebar">
+            <div class="current-turn">
+                <h2>Current Turn</h2>
+                <div class="turn-indicator" id="turn-indicator">
+                    <div class="player-turn-badge" 
+                         style="background: var(--color-{{ current_player.color }});">
+                    </div>
+                    <span id="current-player-name">{{ current_player.name }}</span>
+                </div>
+            </div>
+            
+            <div class="dice-section">
+                <h3>🎲 Roll the Dice!</h3>
+                <div class="dice-animation-container">
+                    <img id="dice-image" class="dice-image" src="{% static 'images/dice/dice1.png' %}" alt="Dice">
+                    <div id="dice-value-display" class="dice-value-display hidden">?</div>
+                </div>
+                <button class="btn-large btn-primary" id="roll-button" onclick="rollDice()">
+                    🎲 Roll Dice
+                </button>
+            </div>
+            
+            <div class="game-log">
+                <h3>Game Log</h3>
+                <div class="log-messages" id="log-messages">
+                    <p class="log-message">Game started! {{ current_player.name }}'s turn.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Winner Modal -->
+<div id="winner-modal" class="modal">
+    <div class="modal-content">
+        <h2>🎉 Game Over! 🎉</h2>
+        <p class="winner-text">
+            <span id="winner-name"></span> wins!
+        </p>
+        <div class="modal-actions">
+            <a href="{% url 'home' %}" class="btn-primary">Back to Home</a>
+            <a href="{% url 'create_game' %}" class="btn-secondary">New Game</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    const gameId = {{ game.id }};
+    const csrfToken = '{{ csrf_token }}';
+    const piecesData = {{ pieces_data|safe }};
+    let currentPlayerColor = '{{ current_player.color }}';
+    let movablePieces = [];
+    
+    // Quit game functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const quitBtn = document.getElementById('quit-game-btn');
+        if (quitBtn) {
+            quitBtn.addEventListener('click', function() {
+                if (confirm('Are you sure you want to quit this game? The game will be marked as finished.')) {
+                    fetch(`/game/${gameId}/quit/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrfToken,
+                            'Content-Type': 'application/json',
+                        },
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Game ended successfully!');
+                            window.location.href = '/';
+                        } else {
+                            alert('Error: ' + (data.error || 'Could not end game'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while ending the game');
+                    });
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/game.js' %}"></script>
+{% endblock %}
+

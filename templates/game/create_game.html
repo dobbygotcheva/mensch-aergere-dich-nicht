@@ -1,0 +1,306 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Game - Mensch, ärgere dich nicht!{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        overflow-x: hidden;
+    }
+    
+    /* Hide navbar and footer */
+    .navbar { display: none; }
+    .footer { display: none; }
+    
+    .create-game-page {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+    }
+    
+    .create-game-card {
+        background: rgba(118, 75, 162, 0.3);
+        backdrop-filter: blur(15px);
+        border: 2px solid rgba(240, 147, 251, 0.4);
+        border-radius: 20px;
+        padding: 3rem;
+        max-width: 600px;
+        width: 100%;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        animation: fadeInScale 0.6s ease-out;
+    }
+    
+    @keyframes fadeInScale {
+        from {
+            opacity: 0;
+            transform: scale(0.9) translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+    
+    .create-game-card h1 {
+        color: #fef3e2;
+        font-size: 2.5rem;
+        font-weight: 900;
+        text-align: center;
+        margin-bottom: 0.5rem;
+        text-shadow: 3px 3px 8px rgba(0,0,0,0.3);
+        animation: fadeInDown 0.8s ease-out;
+    }
+    
+    .subtitle {
+        color: #f5e6d3;
+        text-align: center;
+        margin-bottom: 0.5rem;
+        font-size: 1rem;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+        animation: fadeIn 1s ease-out;
+    }
+    
+    .create-game-form {
+        margin-top: 2rem;
+    }
+    
+    .player-inputs {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .player-input-group {
+        animation: fadeInLeft 0.8s ease-out;
+        animation-fill-mode: both;
+    }
+    
+    .player-input-group:nth-child(1) { animation-delay: 0.1s; }
+    .player-input-group:nth-child(2) { animation-delay: 0.2s; }
+    .player-input-group:nth-child(3) { animation-delay: 0.3s; }
+    .player-input-group:nth-child(4) { animation-delay: 0.4s; }
+    
+    @keyframes fadeInLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    @keyframes fadeInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    .player-input-group label {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
+        color: #fef3e2;
+        font-weight: 600;
+        font-size: 1.1rem;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+    }
+    
+    .color-badge {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 3px solid rgba(240, 147, 251, 0.6);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        display: inline-block;
+    }
+    
+    .color-badge.red { background: #ef5350; }
+    .color-badge.blue { background: #42a5f5; }
+    .color-badge.green { background: #66bb6a; }
+    .color-badge.yellow { background: #ffee58; }
+    
+    .player-input-group input {
+        width: 100%;
+        padding: 0.9rem 1.2rem;
+        border: 2px solid rgba(240, 147, 251, 0.4);
+        border-radius: 12px;
+        font-size: 1rem;
+        background: rgba(118, 75, 162, 0.2);
+        color: #fef3e2;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(5px);
+    }
+    
+    .player-input-group input::placeholder {
+        color: rgba(245, 230, 211, 0.5);
+    }
+    
+    .player-input-group input:focus {
+        outline: none;
+        border-color: rgba(240, 147, 251, 0.8);
+        background: rgba(118, 75, 162, 0.3);
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(240, 147, 251, 0.3);
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 2rem;
+        animation: fadeInUp 1s ease-out;
+        animation-delay: 0.5s;
+        animation-fill-mode: both;
+    }
+    
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .form-actions .btn-secondary {
+        padding: 0.9rem 2rem;
+        background: rgba(118, 75, 162, 0.4);
+        color: #fef3e2;
+        border: 2px solid rgba(240, 147, 251, 0.4);
+        text-decoration: none;
+        border-radius: 12px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(5px);
+    }
+    
+    .form-actions .btn-secondary:hover {
+        background: rgba(118, 75, 162, 0.6);
+        border-color: rgba(240, 147, 251, 0.6);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(118, 75, 162, 0.4);
+    }
+    
+    .form-actions .btn-primary {
+        padding: 0.9rem 2.5rem;
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: #fef9f0;
+        border: none;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 8px 20px rgba(245, 87, 108, 0.4);
+    }
+    
+    .form-actions .btn-primary:hover {
+        transform: translateY(-3px) scale(1.05);
+        box-shadow: 0 12px 30px rgba(245, 87, 108, 0.6);
+    }
+    
+    /* Team info badges */
+    .team-info {
+        display: flex;
+        justify-content: space-around;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 2px solid rgba(240, 147, 251, 0.3);
+        animation: fadeIn 1.2s ease-out;
+        animation-delay: 0.6s;
+        animation-fill-mode: both;
+    }
+    
+    .team-icon {
+        font-size: 2rem;
+        opacity: 0.7;
+        transition: all 0.3s ease;
+    }
+    
+    .team-icon:hover {
+        opacity: 1;
+        transform: scale(1.2) rotate(10deg);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container create-game-page">
+    <div class="create-game-card">
+        <h1>🎲 Create New Game</h1>
+        <p class="subtitle">Enter player names to start your adventure</p>
+        <p class="subtitle" style="font-size: 0.9rem;">Choose your legendary team! 🎮</p>
+        
+        <form method="POST" action="{% url 'create_game' %}" class="create-game-form">
+            {% csrf_token %}
+            
+            <div class="player-inputs">
+                <div class="player-input-group">
+                    <label for="player1">
+                        <span class="color-badge red"></span> 🐢 Ninja Turtles (Red)
+                    </label>
+                    <input type="text" name="player_names[]" id="player1" 
+                           placeholder="Enter player name..." value="Player 1" required>
+                </div>
+                
+                <div class="player-input-group">
+                    <label for="player2">
+                        <span class="color-badge blue"></span> 🧠 Philosophen (Blue)
+                    </label>
+                    <input type="text" name="player_names[]" id="player2" 
+                           placeholder="Enter player name..." value="Player 2" required>
+                </div>
+                
+                <div class="player-input-group">
+                    <label for="player3">
+                        <span class="color-badge green"></span> 🎵 Musicians (Green)
+                    </label>
+                    <input type="text" name="player_names[]" id="player3" 
+                           placeholder="Enter player name..." value="Player 3" required>
+                </div>
+                
+                <div class="player-input-group">
+                    <label for="player4">
+                        <span class="color-badge yellow"></span> 🐯 Tigers (Yellow)
+                    </label>
+                    <input type="text" name="player_names[]" id="player4" 
+                           placeholder="Enter player name..." value="Player 4" required>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <a href="{% url 'home' %}" class="btn-secondary">← Cancel</a>
+                <button type="submit" class="btn-primary">Start Game 🚀</button>
+            </div>
+            
+            <div class="team-info">
+                <span class="team-icon" title="Ninja Turtles">🐢</span>
+                <span class="team-icon" title="Philosophen">🧠</span>
+                <span class="team-icon" title="Musicians">🎵</span>
+                <span class="team-icon" title="Tigers">🐯</span>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
